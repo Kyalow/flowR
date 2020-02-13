@@ -75,7 +75,6 @@ plotGatingSetInput <- function(id) {
   
 }
 
-
 #' plotGatingSet module server function
 #' @param input shiny input
 #' @param output shiny output
@@ -129,11 +128,11 @@ plotGatingSet <- function(input, output, session,
                           show_gates = FALSE,
                           polygon_gate = NULL) {
   
-  # module specific reactiveValues
+  ### module specific reactiveValues ###############################################################
   rval_mod <- reactiveValues(plot_list = list(), 
                              count_raw = 0, count_format = 0, count_gate = 0)
   
-  # rval_plot stores default values
+  ### Default plot parameters ######################################################################
   rval_plot <- reactiveValues(plot_type = "hexagonal",
                               use_all_cells = FALSE,
                               auto_focus = FALSE,
@@ -155,8 +154,8 @@ plotGatingSet <- function(input, output, session,
                               show_outliers = FALSE,
                               option = "viridis")
   
-  ######################################################################################
-  # Initialization of plot parameters
+
+  ### Initialization of plot parameters ############################################################
   observe({
     rval_plot$xvar <- choices()$plot_var[1]
     
@@ -179,7 +178,7 @@ plotGatingSet <- function(input, output, session,
     rval_plot$subset <- choices()$subset[1]
   })
   
-  #Control initial values using the input 'plot_params'
+  ### Control of plot parameters using 'plot_params' ###############################################
   observeEvent(reactiveValuesToList(plot_params), {
     
     for(var in names(rval_input)){
@@ -192,67 +191,21 @@ plotGatingSet <- function(input, output, session,
 
   })
 
-  ######################################################################################
-  # Sample and subset selection module
+  ### Sample and subset selection module ###########################################################
   
   selected <- callModule(selection, "selection_module", rval, 
                          params = plot_params, multiple_subset = !simple_plot)
 
-  ######################################################################################
-  # get parameters from GatingSet
+  ### Get parameters from GatingSet ################################################################
+  
   choices <- reactive({
     rval$update_gs
     validate(need(class(rval$gating_set) == "GatingSet", "input is not a GatingSet"))
-    
-    plot_var <- parameters(rval$gating_set@data[[1]])$name
-    
-    validate(need(length(plot_var)>0, "No variables in GatingSet"))
-    
-    desc <- parameters(rval$gating_set@data[[1]])$desc
-    minRange <- parameters(rval$gating_set@data[[1]])@data$minRange
-    maxRange <- parameters(rval$gating_set@data[[1]])@data$maxRange
-    
-    axis_limits <- lapply(1:length(plot_var), function(x){
-      return(as.numeric(c(minRange[x], maxRange[x])))})
-    
-    names(axis_limits) <- plot_var
-      
-    labels <- sapply(1:length(plot_var), function(x){
-      if(is.na(desc[x])){
-        plot_var[x]
-      }else{
-        paste(plot_var[x], "(", desc[x], ")")
-      }
-    })
-    names(plot_var) <- labels
-    names(labels) <- plot_var 
-    
-    extra_facet_var <- plot_var[plot_var %in% c("cluster", "bin")]
-    
-    if(length(extra_facet_var) == 0){
-      extra_facet_var <- NULL
-    }
-    
-    return( 
-      list(sample = pData(rval$gating_set)$name,
-           subset = gs_get_pop_paths(rval$gating_set),
-           plot_var = plot_var,
-           labels = labels,
-           axis_limits = axis_limits,
-           metadata = pData(rval$gating_set),
-           parameters = parameters(rval$gating_set@data[[1]]),
-           meta_var = names(pData(rval$gating_set)),
-           extra_facet_var = extra_facet_var,
-           transformation = rval$gating_set@transformation,
-           compensation = rval$gating_set@compensation,
-           gates = get_gates_from_gs(rval$gating_set)
-      )
-    )
+    get_parameters_gs(rval$gating_set)
   })
   
-  ######################################################################################
-  #                               Build UI
-  ######################################################################################
+
+  ### Build UI #####################################################################################
   
   output$ui_update <- renderUI({
     ns <- session$ns
@@ -265,8 +218,8 @@ plotGatingSet <- function(input, output, session,
     }
   })
   
-  ######################################################################################
-  # Define and initialize plot options
+
+  ### Define and initialize plot options ###########################################################
   observe({
     
     ns <- session$ns
@@ -350,9 +303,8 @@ plotGatingSet <- function(input, output, session,
     
   })
   
-  ######################################################################################
-  # Define and initialize plot variables
-  
+
+  ### Define and initialize plot variables ##########################################################
   
   observeEvent(c(rval_input$plot_type, 
                  rval_plot[["color_var"]], 
@@ -360,22 +312,31 @@ plotGatingSet <- function(input, output, session,
                  choices()$plot_var), {
     
     validate(need(rval_input$plot_type, "No plot type selected"))   
-    validate(need(rval_plot[["color_var"]], "No color variable defined"))             
                    
     for(var in names(rval_input)){
       rval_plot[[var]] <- rval_input[[var]]
     }
     
-    ns <- session$ns
+    if(rval_input$plot_type == "histogram"){
+      rval_plot$auto_focus <- TRUE
+    }
+    
     color_var_choices <- switch(rval_input$plot_type,
                                 "dots" = c("none", "subset", choices()$meta_var, 
                                            choices()$plot_var),
-                                c("none", "subset", choices()$meta_var))
+                                c("none", "subset", 
+                                  choices()$meta_var, 
+                                  choices()$plot_var[choices()$params$vartype != "double"]))
+    
+    if(is.null(rval_plot[["color_var"]])){
+      rval_plot[["color_var"]] <- color_var_choices[1]
+    }
     
     if(! rval_plot[["color_var"]] %in% color_var_choices ){
       rval_plot[["color_var"]] <- color_var_choices[1]
     }
     
+    ns <- session$ns
     rval_mod$plot_variables[["color_var"]] <-  selectizeInput(ns("color_var"),
                                                               multiple = !simple_plot,
                                                               label = "color variable",
@@ -401,7 +362,9 @@ plotGatingSet <- function(input, output, session,
     rval_mod$plot_variables[["group_var"]] <- selectizeInput(ns("group_var"), 
                                        multiple = !simple_plot,
                                        label = "group variable",
-                                       choices = c("none", "subset", choices()$meta_var),
+                                       choices = c("none", "subset", 
+                                                   choices()$meta_var,
+                                                   choices()$plot_var[choices()$params$vartype != "double"]),
                                        selected = rval_plot[["group_var"]])
     
     rval_mod$plot_variables[["facet_var"]] <- selectizeInput(ns("facet_var"),
@@ -409,7 +372,7 @@ plotGatingSet <- function(input, output, session,
                                        label = "facet variables",
                                        choices = c("subset", 
                                                    choices()$meta_var, 
-                                                   choices()$extra_facet_var),
+                                                   choices()$plot_var[choices()$params$vartype != "double"]),
                                        selected = rval_plot[["facet_var"]]
     )
     
@@ -432,7 +395,7 @@ plotGatingSet <- function(input, output, session,
                           "hexagonal" = c("color_var", "group_var"),
                           NULL)
     if(simple_plot){
-      hidden_vars <- union(hidden_vars, c("facet_var", "split_var"))
+      hidden_vars <- union(hidden_vars, c("split_var"))
     }
     
     vars <- setdiff(vars, hidden_vars)
@@ -453,17 +416,13 @@ plotGatingSet <- function(input, output, session,
     }
   })
   
-  ###############################   End Build UI  #####################################
-
-  ######################################################################################
-  # Select plot variables using a pattern
-  
+  ### Select plot variables using a pattern #########################################################
   
   choices_pattern <- reactiveValues()
   
   observe({
     
-    validate(need(rval_input$plot_type, "Not plot type selected"))
+    validate(need(rval_input$plot_type, "No plot type selected"))
     
     choices_color_var <- switch(rval_input$plot_type,
                                 "dots" = c("none", "subset", choices()$meta_var, 
@@ -498,8 +457,7 @@ plotGatingSet <- function(input, output, session,
     }
   })
   
-  ######################################################################################
-  # store plot parameters in rval_input (available for the upstream shiny module)
+  ### store plot parameters in rval_input (available for the upstream shiny module) #################
                                   
   rval_input <- reactiveValues()
   
@@ -521,23 +479,19 @@ plotGatingSet <- function(input, output, session,
     }
   })
 
-  ######################################################################################
-  #                               Update plot
-  ######################################################################################
   
-  
-  ######################################################################################
-  # Control update of plot data
+  ### Control update of plot data ##################################################################
   
   params_update_data <- reactive({
-    #print("update_data")
+    
+    print("update data")
     if(!auto_update){
       input$update_plot
     }else{
       update_params <- c(rval$update_gs,
                          rval_input$sample,
                          rval_input$subset,
-                         choices()$parameters,
+                         choices()$params,
                          choices()$metadata,
                          choices()$gates,
                          rval_input$use_all_cells
@@ -549,10 +503,12 @@ plotGatingSet <- function(input, output, session,
     }
   })
   
-  ######################################################################################3
-  # Control update of raw plot
+  ### Control update of raw plot ###################################################################
+  
   params_update_plot_raw <- reactive({
-    #print("update_raw")
+    
+    print("update_raw")
+    
     if(!auto_update){
       input$update_plot
     }else{
@@ -581,10 +537,10 @@ plotGatingSet <- function(input, output, session,
     }
   })
   
-  ######################################################################################3
-  # Control update of formatted plot
+  ### Control update of formatted plot #############################################################
+  
   params_update_plot_format <- reactive({
-    #print("update_format")
+    print("update_format")
     
     if(!auto_update){
       input$update_plot
@@ -615,12 +571,11 @@ plotGatingSet <- function(input, output, session,
     }
   })
   
+  ### Get plot data ################################################################################
   
-  ######################################################################################3
-  # Get plot data
   data_plot_focus <- eventReactive(params_update_data(), {
     
-    #print("data")
+    print("data")
     
     validate(need(rval$gating_set, "Empty GatingSet"))
     validate(need(rval_input$sample, "Please select samples"))
@@ -646,26 +601,30 @@ plotGatingSet <- function(input, output, session,
       }
     }
     
+    vartype <- choices()$params$vartype
+    names(vartype) <- choices()$params$name
+    
     df <- get_plot_data(gs = rval$gating_set,
                       sample = rval_input$sample,
                       subset = rval_input$subset,
                       spill = spill,
                       metadata = choices()$metadata,
-                      Ncells = Ncells)
+                      Ncells = Ncells,
+                      vartype = vartype)
     
     return(df)
     
   })
   
-  ######################################################################################3
-  # Build raw plot
-  observeEvent(c(params_update_plot_raw(),  data_plot_focus()), {
+  ### Build raw plot ###############################################################################
+  
+  plot_raw <- eventReactive(c(params_update_plot_raw(),  data_plot_focus()),{
     
     #print("raw")
-    
     df <- data_plot_focus()
-    rval_mod$plot_list <- list()
+    plot_list <- list()
     
+    validate(need(df, "no cells in selection"))
     validate(need(rval_input$xvar %in% choices()$plot_var, "Please select x variable"))
     validate(need(rval_input$plot_type, "Please select plot type"))
     if(!is.null(rval_input$plot_type)){
@@ -682,22 +641,27 @@ plotGatingSet <- function(input, output, session,
       split_variable <- rval_input$split_var
     }
     
+    mono_var <- setdiff(c("xvar", "yvar", "color_var"), split_variable)
+    
+    for(var in mono_var){
+      plot_args[[var]] <- rval_input[[var]][1]
+    }
+    
     for(var in rval_input[[split_variable]]){
           
           plot_args[[split_variable]] <- var
 
-          rval_mod$plot_list[[var]] <- call_plot_function(df=df,
+          plot_list[[var]] <- call_plot_function(df=df,
                                                         plot_type = rval_input$plot_type,
                                                         plot_args = plot_args)
-    
     }
     
-    rval_mod$count_raw <- rval_mod$count_raw + 1
+    return(plot_list)
   })
   
-  ######################################################################################
-  # Format plot
-  observeEvent(params_update_plot_format(),  {
+  ### Format plot ##################################################################################
+  
+  plot_format <- eventReactive( c(params_update_plot_format(), plot_raw()), {
     
     #print("format")
     
@@ -718,20 +682,17 @@ plotGatingSet <- function(input, output, session,
       options$axis_limits <- choices()$axis_limits
     }
     
-    plist <- lapply( rval_mod$plot_list,
+    plist <- lapply( plot_raw(),
                      function(p){
                        format_plot(p,
                                    options = options)
                      })
-   
-    rval_mod$plot_list <- plist
-    rval_mod$count_format <- rval_mod$count_format + 1
-    #print("OK format")
+   return(plist)
   })
   
-  ######################################################################################
-  # Add gates corresponding to plot coordinates
-  draw_gates <- eventReactive(rval_mod$count_format, {
+  ### Add gates corresponding to plot coordinates ##################################################
+  
+  draw_gates <- eventReactive(plot_format(), {
     
     #print("gate")
     
@@ -749,10 +710,7 @@ plotGatingSet <- function(input, output, session,
       }
     }
     
-    plist <- rval_mod$plot_list
-    #print(gate)
-    
-    plist <- lapply( plist,
+    plist <- lapply( plot_format(),
                      function(p){
                        if(!is.null(gate)){
                          for(gate_name in setdiff(gate, "root")){
@@ -764,57 +722,49 @@ plotGatingSet <- function(input, output, session,
                        return(p)
                      })
 
-    #print("OK gate")
     return(plist)
   })
   
-  ######################################################################################
-  # Add polygonal plot layer
+  ### Add polygon layer ############################################################################
+  
   draw_polygon <- reactive({
     
     #print("poly")
     
-      gate <- NULL
-      if(!is.null(rval_input$show_gates)){
-        if(rval_input$show_gates){
-          gate <- rval_input$subset
-        }
+    gate <- NULL
+    if(!is.null(rval_input$show_gates)){
+      if(rval_input$show_gates){
+        gate <- rval_input$subset
       }
-
-      polygon <- data.frame(x = polygon_gate$x,
-                            y = polygon_gate$y)
-
-      plist <- draw_gates()
-      
-      plist <- lapply(plist,
-                      function(p){
-                        if(!is.null(polygon$x)){
-                          p <- add_polygon_layer(p, polygon = polygon)
-                        }
-                        if(!is.null(gate)){
-                          for(gate_name in setdiff(gate, "root")){
-                            g <- choices()$gates[[gate_name]]$gate
-                            p <- add_gate(p, g)
-                          }
-                        }
-                        return(p)
-                      })
-
-      #print("OK poly")
-      plist
-      
-      
+    }
+    
+    polygon <- data.frame(x = polygon_gate$x,
+                          y = polygon_gate$y)
+    
+    
+    plist <- lapply( draw_gates(),
+                     function(p){
+                       if(!is.null(polygon$x)){
+                         p <- add_polygon_layer(p, polygon = polygon)
+                       }
+                       if(!is.null(gate)){
+                         for(gate_name in setdiff(gate, "root")){
+                           g <- choices()$gates[[gate_name]]$gate
+                           p <- add_gate(p, g)
+                         }
+                       }
+                       return(p)
+                     })
+    
+    return(plist)
+    
   })
   
   return( list(plot = draw_polygon, params = rval_input) )
   
 }
 
-
-
-##################################################################################
-# Tests
-##################################################################################
+### Tests ##########################################################################################
 # 
 # library(shiny)
 # library(shinydashboard)

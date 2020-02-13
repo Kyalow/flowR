@@ -9,7 +9,7 @@ dim_reduction(
   yvar,
   Ncells = NULL,
   transformation = NULL,
-  y_trans = log10_trans(),
+  y_trans = identity_trans(),
   perplexity = 50,
   dims = 2,
   method = "tSNE",
@@ -35,7 +35,8 @@ List names should correspond to variable names.}
 
 \item{method}{Name of the method used. Either "tSNE" or "umap"}
 
-\item{check_duplicates}{logical. Checks whether duplicates are present (passed to \code{Rtsne:Rstne()})}
+\item{check_duplicates}{logical. Checks whether duplicates are 
+present (passed to \code{Rtsne:Rstne()})}
 }
 \value{
 a data.frame with additionnal columns : 

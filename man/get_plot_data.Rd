@@ -11,7 +11,8 @@ get_plot_data(
   subset,
   Ncells = NULL,
   spill = NULL,
-  metadata = NULL
+  metadata = NULL,
+  vartype = NULL
 )
 }
 \arguments{
@@ -33,7 +34,10 @@ Otherwise supersedes parameters 'gs', 'sample', 'spill', 'metadata'.}
 
 \item{spill}{spillover matrix. If NULL, uncompensated data is returned and used for gating.}
 
-\item{metadata}{a data.frame containing metadata associated to samples.
+\item{metadata}{a data.frame containing metadata associated to samples.}
+
+\item{vartype}{named character vector specifying variable type conversion.
+(either "factor", "integer" or "character")
 Must have a column \code{name} used for mapping.}
 }
 \value{
