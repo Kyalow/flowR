@@ -5,7 +5,7 @@ library(xml2)
 
 # Parse flowJO workspace
 
-ws <- read_xml("../flowR_utils/demo-data/JL04BMVLG-Valentin/Tumor-testFlowR.wsp")
+ws <- read_xml("/mnt/NAS7/Workspace/hammamiy/demo-data/JL04BMVLG-Valentin/Tumor-testFlowR.wsp")
 
 # parse spillover matrices from FlowJo wsp
 ws_path <- "../flowR_utils/demo-data/JL04BMVLG-Valentin/Tumor-testFlowR.wsp"

@@ -226,34 +226,35 @@ Import <- function(input, output, session, rval) {
 
 #### Tests ####
 #
-# library(shiny)
-# library(shinydashboard)
-# 
-# if (interactive()){
-# 
-#   ui <- dashboardPage(
-#     dashboardHeader(title = "Import"),
-#     sidebar = dashboardSidebar(disable = TRUE),
-#     body = dashboardBody(
-#       fluidRow(
-#         column(4, box(width = NULL, verbatimTextOutput("info"))),
-#         column(8, box(width = NULL, ImportUI("module")))
-#       )
-#     )
-#   )
-# 
-#   server <- function(input, output, session) {
-# 
-#     rval <- reactiveValues()
-# 
-#     rval <- callModule(Import, "module", rval = rval)
-# 
-#     output$info <- renderPrint({
-#       print(rval$gating_set_list)
-#     })
-# 
-#   }
-# 
-#   shinyApp(ui, server)
-# 
-# }
+library(shiny)
+library(shinydashboard)
+
+if (interactive()){
+
+  ui <- dashboardPage(
+    dashboardHeader(title = "Import"),
+    sidebar = dashboardSidebar(disable = TRUE),
+    body = dashboardBody(
+      fluidRow(
+        column(4, box(width = NULL, verbatimTextOutput("info"))),
+        column(8, box(width = NULL, ImportUI("module")))
+      )
+    )
+  )
+
+  server <- function(input, output, session) {
+
+    rval <- reactiveValues()
+
+    rval <- callModule(Import, "module", rval = rval)
+
+    output$info <- renderPrint({
+      print(rval$gating_set_list)
+      print(rval$gs)
+    })
+
+  }
+
+  shinyApp(ui, server)
+
+}

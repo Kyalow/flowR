@@ -232,4 +232,9 @@ flowR_server <- function(session, input, output, modules = NULL) {
     }
   })
 
+  observe({
+    library(pryr)
+    message(mem_used())
+    message(mem_change(rval$gating_set))
+  })
 }
