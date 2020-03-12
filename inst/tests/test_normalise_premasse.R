@@ -1,3 +1,5 @@
+library(flowCore)
+library(premessa)
 
 # read barcode (needed)
 # data("GvHD")
